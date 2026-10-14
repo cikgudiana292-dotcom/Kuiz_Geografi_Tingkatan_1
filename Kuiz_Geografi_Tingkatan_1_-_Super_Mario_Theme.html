@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuiz Geografi Tingkatan 1 - Mario Edition</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Press Start 2P & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        .font-retro {
+            font-family: 'Press Start 2P', cursive;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #5c94fc;
+            background-image: radial-gradient(#ffffff 15%, transparent 16%);
+            background-size: 30px 30px;
+        }
+        .pixel-corners {
+            box-shadow: 
+                -4px 0 0 0 #000,
+                4px 0 0 0 #000,
+                0 -4px 0 0 #000,
+                0 4px 0 0 #000;
+        }
+        .mario-box {
+            background-color: #f8b800;
+            border: 4px solid #000;
+            box-shadow: inset -4px -4px 0px #b86800, inset 4px 4px 0px #fce0a8;
+        }
+        .pipe-green {
+            background: linear-gradient(90deg, #00a800 0%, #00f800 20%, #00a800 80%, #005000 100%);
+            border: 3px solid #000;
+        }
+        /* Custom Keyframe Animations */
+        @keyframes jump {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-35px); }
+            100% { transform: translateY(0); }
+        }
+        .animate-jump {
+            animation: jump 0.4s ease-out;
+        }
+        @keyframes coinFloat {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.2); opacity: 0; }
+        }
+        .coin-popup {
+            animation: coinFloat 0.6s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between items-center p-3 sm:p-6 text-gray-800">
+
+<script>
+    // Audio Synthesizer using Web Audio API to avoid external asset link breakages
+    class SoundFX {
+        constructor() {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            this.bgmOsc = null;
+            this.isPlayingBGM = false;
+        }
+
+        playJump() {
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.15);
+            
+            gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+            
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.15);
+        }
+
+        playCoin() {
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(987.77, now); // B5
+            osc.frequency.setValueAtTime(1318.51, now + 0.08); // E6
+
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+            osc.start();
+            osc.stop(now + 0.3);
+        }
+
+        playWrong() {
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.setValueAtTime(100, now + 0.15);
+
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+
+            osc.start();
+            osc.stop(now + 0.3);
+        }
+
+        playVictory() {
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+            const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99];
+            notes.forEach((freq, idx) => {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+                const startTime = this.ctx.currentTime + idx * 0.1;
+                gain.gain.setValueAtTime(0.15, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2);
+                osc.start(startTime);
+                osc.stop(startTime + 0.2);
+            });
+        }
+
+        toggleBGM() {
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+            if (this.isPlayingBGM) {
+                this.stopBGM();
+            } else {
+                this.startBGM();
+            }
+        }
+
+        startBGM() {
+            this.isPlayingBGM = true;
+            document.getElementById('bgmBtn').innerHTML = '<i class="fas fa-volume-up"></i> BGM ON';
+            // Simple 8-bit style looping background tune
+            const tempo = 180;
+            const noteLength = 60 / tempo / 2;
+            const tune = [
+                659, 659, 0, 659, 0, 523, 659, 0, 784, 0, 0, 0, 392, 0, 0, 0
+            ];
+            let noteIdx = 0;
+
+            this.bgmInterval = setInterval(() => {
+                if (!this.isPlayingBGM) return;
+                const freq = tune[noteIdx % tune.length];
+                if (freq > 0) {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.type = 'square';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.02, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + noteLength * 0.8);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + noteLength * 0.8);
+                }
+                noteIdx++;
+            }, noteLength * 1000);
+        }
+
+        stopBGM() {
+            this.isPlayingBGM = false;
+            clearInterval(this.bgmInterval);
+            document.getElementById('bgmBtn').innerHTML = '<i class="fas fa-volume-mute"></i> BGM OFF';
+        }
+    }
+
+    const sfx = new SoundFX();
+</script>
+
+<header class="w-full max-w-4xl flex justify-between items-center p-3 bg-red-600 text-white rounded-lg border-4 border-black shadow-lg mb-4">
+    <div class="flex items-center gap-2">
+        <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center border-2 border-black font-retro text-red-600 font-bold text-xl">M</div>
+        <div>
+            <h1 class="font-retro text-xs sm:text-sm md:text-base text-yellow-300 drop-shadow">GEO MARIO WORLD</h1>
+            <p class="text-xs text-white opacity-90 hidden sm:block">Geografi Tingkatan 1 KSSM</p>
+        </div>
+    </div>
+    <div class="flex gap-2">
+        <button id="bgmBtn" onclick="sfx.toggleBGM()" class="bg-yellow-400 text-black px-3 py-1.5 rounded border-2 border-black font-retro text-xs hover:bg-yellow-300">
+            <i class="fas fa-volume-mute"></i> BGM OFF
+        </button>
+    </div>
+</header>
+
+<main class="w-full max-w-4xl bg-white rounded-xl border-4 border-black shadow-2xl p-4 sm:p-6 relative overflow-hidden my-auto">
+    
+    <!-- Floating Coin animation element -->
+    <div id="coinAnimation" class="hidden absolute left-1/2 top-10 font-retro text-yellow-500 font-bold text-2xl pointer-events-none z-50">
+        +100 🪙
+    </div>
+
+    <!-- START SCREEN -->
+    <section id="startScreen" class="flex flex-col items-center text-center space-y-6">
+        <div class="mario-box p-4 rounded-lg w-full max-w-md">
+            <h2 class="font-retro text-sm sm:text-lg text-black mb-2">PENGEMBARAAN GEOGRAFI</h2>
+            <p class="text-xs sm:text-sm text-gray-800">Uji pengetahuan anda dalam 20 Soalan Sukatan DSKP Tingkatan 1!</p>
+        </div>
+
+        <!-- Mario Sprite / Graphic Representation -->
+        <div id="marioAvatar" class="relative my-2">
+            <svg class="w-24 h-24 mx-auto text-red-600 drop-shadow-md" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C8.5 2 5.5 4 4 7c1.5 1 3.5 1.5 6 1.5s4.5-.5 6-1.5c-1.5-3-4.5-5-8-5zm-5 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-5 2c-1.7 0-3 1.3-3 3h6c0-1.7-1.3-3-3-3zm-7 5c0 2.2 3.1 4 7 4s7-1.8 7-4H5z"/>
+            </svg>
+        </div>
+
+        <form id="playerForm" onsubmit="startQuiz(event)" class="w-full max-w-md space-y-4">
+            <div class="text-left">
+                <label class="block font-semibold text-gray-700 text-sm mb-1">Nama Pemain:</label>
+                <input type="text" id="playerName" required placeholder="Contoh: Ahmad Mario" class="w-full p-3 border-2 border-black rounded-lg focus:ring-2 focus:ring-red-500 font-medium">
+            </div>
+            <div class="text-left">
+                <label class="block font-semibold text-gray-700 text-sm mb-1">Kelas:</label>
+                <input type="text" id="playerClass" required placeholder="Contoh: 1 Cemerlang" class="w-full p-3 border-2 border-black rounded-lg focus:ring-2 focus:ring-red-500 font-medium">
+            </div>
+            <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white font-retro text-sm p-4 rounded-lg border-4 border-black shadow-md hover:scale-105 transition-transform active:scale-95">
+                MULA KUIZ MARIO! 🚀
+            </button>
+        </form>
+
+        <!-- Top Scores Section (In-Memory / Simulated DB) -->
+        <div class="w-full mt-6 text-left border-t-2 border-gray-200 pt-4">
+            <h3 class="font-retro text-xs text-gray-700 mb-3 flex items-center gap-2">
+                <i class="fas fa-trophy text-yellow-500"></i> PAPAN SKOR TERTINGGI (DATABASE)
+            </h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-100 border-b-2 border-black">
+                            <th class="p-2">#</th>
+                            <th class="p-2">Nama</th>
+                            <th class="p-2">Kelas</th>
+                            <th class="p-2">Markah</th>
+                            <th class="p-2">Masa</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboardBody">
+                        <tr>
+                            <td colspan="5" class="p-3 text-center text-gray-500">Memuatkan rekod...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- QUIZ SCREEN -->
+    <section id="quizScreen" class="hidden flex-col space-y-4">
+        <!-- Status Bar -->
+        <div class="flex justify-between items-center bg-yellow-100 p-3 rounded-lg border-2 border-black text-xs sm:text-sm font-semibold">
+            <div id="playerDisplay" class="text-red-700 font-bold">Pemain: -</div>
+            <div class="flex gap-4">
+                <span id="scoreDisplay" class="text-green-700"><i class="fas fa-coins text-yellow-500"></i> Markah: 0</span>
+                <span id="timerDisplay" class="text-blue-700"><i class="fas fa-clock"></i> Masa: 0s</span>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="w-full bg-gray-200 rounded-full h-4 border-2 border-black overflow-hidden">
+            <div id="progressBar" class="bg-red-500 h-full w-0 transition-all duration-300"></div>
+        </div>
+
+        <!-- Question Header Info -->
+        <div class="flex justify-between items-center">
+            <span id="questionNum" class="font-retro text-xs text-gray-600">Soalan 1/20</span>
+            <span id="difficultyBadge" class="text-xs px-2 py-1 rounded font-bold text-white bg-green-500">Mudah</span>
+        </div>
+
+        <!-- Question Box -->
+        <div class="bg-blue-50 p-4 sm:p-6 rounded-lg border-3 border-blue-400 min-h-[100px] flex items-center justify-center">
+            <h2 id="questionText" class="text-base sm:text-lg font-bold text-gray-800 text-center">Teks soalan akan dipaparkan di sini...</h2>
+        </div>
+
+        <!-- Answers Grid -->
+        <div id="optionsContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            <!-- Options populated dynamically -->
+        </div>
+
+        <!-- Mario Interactive Character Canvas Area -->
+        <div class="relative h-16 w-full border-b-4 border-green-700 bg-blue-200 rounded-b-lg overflow-hidden flex items-end px-4">
+            <div id="gameMario" class="text-3xl transition-all duration-300 relative bottom-0">
+                🍄
+            </div>
+            <div class="ml-auto pipe-green w-12 h-10 rounded-t-sm"></div>
+        </div>
+    </section>
+
+    <!-- RESULT SCREEN -->
+    <section id="resultScreen" class="hidden flex-col items-center text-center space-y-6">
+        <div class="mario-box p-6 rounded-xl w-full">
+            <h2 class="font-retro text-base sm:text-xl text-black mb-2">TAHNIAH! KUIZ SELESAI!</h2>
+            <p id="resultSubtitle" class="text-sm text-gray-700">Anda telah berjaya menamatkan pengembaraan!</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-md">
+            <div class="bg-yellow-50 p-4 border-2 border-black rounded-lg">
+                <div class="text-xs text-gray-500">Jumlah Markah</div>
+                <div id="finalScore" class="font-retro text-xl text-yellow-600 mt-1">0</div>
+            </div>
+            <div class="bg-blue-50 p-4 border-2 border-black rounded-lg">
+                <div class="text-xs text-gray-500">Tempoh Masa</div>
+                <div id="finalTime" class="font-retro text-xl text-blue-600 mt-1">0s</div>
+            </div>
+            <div class="bg-green-50 p-4 border-2 border-black rounded-lg">
+                <div class="text-xs text-gray-500">Ketepatannya</div>
+                <div id="finalAccuracy" class="font-retro text-xl text-green-600 mt-1">0%</div>
+            </div>
+        </div>
+
+        <button onclick="restartQuiz()" class="bg-red-500 hover:bg-red-600 text-white font-retro text-sm px-6 py-4 rounded-lg border-4 border-black shadow-lg hover:scale-105 transition-transform">
+            MAIN SEMULA 🔄
+        </button>
+    </section>
+
+</main>
+
+<footer class="w-full max-w-4xl text-center py-3 text-xs text-white font-medium">
+    &copy; 2026 Kuiz Geografi Tingkatan 1 KSSM | Tema Mario & Simpanan Database
+</footer>
+
+<script>
+    // 20 Questions based on DSKP Geografi Tingkatan 1 KSSM
+    const quizQuestions = [
+        // Mudan (8 Soalan)
+        {
+            q: "Apakah arah mata angin utama yang terletak di antara Utara dan Timur?",
+            options: ["Timur Laut", "Tenggara", "Barat Daya", "Barat Laut"],
+            ans: 0,
+            diff: "Mudah"
+        },
+        {
+            q: "Alatan apakah yang digunakan untuk menentukan arah mata angin dengan tepat?",
+            options: ["Pembaris", "Kompas Magnetik", "Termometer", "Barometer"],
+            ans: 1,
+            diff: "Mudah"
+        },
+        {
+            q: "Berapakah bearing sudut penuh bagi satu bulatan?",
+            options: ["90°", "180°", "270°", "360°"],
+            ans: 3,
+            diff: "Mudah"
+        },
+        {
+            q: "Apakah garisan lintang 0° yang membahagikan bumi kepada Hemisfera Utara dan Selatan?",
+            options: ["Garisan Sartan", "Garisan Khatulistiwa", "Garisan Sarian", "Garisan Hindi"],
+            ans: 1,
+            diff: "Mudah"
+        },
+        {
+            q: "Ibu negeri bagi negeri Sarawak ialah...",
+            options: ["Miri", "Sibu", "Kuching", "Bintulu"],
+            ans: 2,
+            diff: "Mudah"
+        },
+        {
+            q: "Bentuk muka bumi yang merujuk kepada kawasan tanah rendah tepi laut ialah...",
+            options: ["Pinggir Laut", "Saluran", "Dataran Tinggi", "Banjaran"],
+            ans: 0,
+            diff: "Mudah"
+        },
+        {
+            q: "Apakah sungai terpanjang di Malaysia?",
+            options: ["Sungai Pahang", "Sungai Perak", "Sungai Rajang", "Sungai Kinabatangan"],
+            ans: 2,
+            diff: "Mudah"
+        },
+        {
+            q: "Antara berikut, yang manakah merupakan sumber air semula jadi utama di Malaysia?",
+            options: ["Air hujan dan sungai", "Air laut suling", "Air paip", "Air bertapis"],
+            ans: 0,
+            diff: "Mudah"
+        },
+
+        // Sederhana (8 Soalan)
+        {
+            q: "Apakah fungsi utama garisan Meridian Pangkal (0°)?",
+            options: ["Menentukan zon iklim", "Menentukan waktu piawai dunia", "Menyukat kedalaman laut", "Mengira kepadatan penduduk"],
+            ans: 1,
+            diff: "Sederhana"
+        },
+        {
+            q: "Banjaran Titiwangsa dikenali juga sebagai...",
+            options: ["Tulang belakang Semenanjung Malaysia", "Banjaran tertinggi di Asia", "Banjaran gunung berapi", "Sempadan antarabangsa"],
+            ans: 0,
+            diff: "Sederhana"
+        },
+        {
+            q: "Kawasan tanah tinggi penting di Malaysia untuk pertanian tanaman hawa sederhana seperti...",
+            options: ["Kelapa sawit", "Teh dan sayur-sayuran", "Padi", "Getah"],
+            ans: 1,
+            diff: "Sederhana"
+        },
+        {
+            q: "Apakah tasik semula jadi terbesar di Malaysia?",
+            options: ["Tasik Kenyir", "Tasik Bera", "Tasik Chini", "Tasik Temenggor"],
+            ans: 1,
+            diff: "Sederhana"
+        },
+        {
+            q: "Manakah antara berikut merupakan punca utama pencemaran tanih?",
+            options: ["Pembuangan sisa toksik dan racun serangga", "Penebangan pokok berlesen", "Hujan lebat berturut-turut", "Penanaman semula pokok"],
+            ans: 0,
+            diff: "Sederhana"
+        },
+        {
+            q: "Negara Asia Tenggara manakah yang tidak mempunyai pinggir laut (landlocked)?",
+            options: ["Kemboja", "Laos", "Myanmar", "Vietnam"],
+            ans: 1,
+            diff: "Sederhana"
+        },
+        {
+            q: "Apakah kesan utama amalan kitar semula 3R (Reduce, Reuse, Recycle)?",
+            options: ["Menambah sumber air", "Meningkatkan sisa pepejal", "Mengurangkan pencemaran alam sekitar", "Mempercepatkan hakisan"],
+            ans: 2,
+            diff: "Sederhana"
+        },
+        {
+            q: "Manakah pulau yang terkenal sebagai pulau karang di Malaysia?",
+            options: ["Pulau Sipadan", "Pulau Langkawi", "Pulau Pinang", "Pulau Pangkor"],
+            ans: 0,
+            diff: "Sederhana"
+        },
+
+        // Mencabar (4 Soalan)
+        {
+            q: "Kedudukan relatif sesuatu tempat ditentukan berdasarkan...",
+            options: ["Latitud dan Longitud", "Titik rujukan tempat lain", "Ketinggian dari aras laut", "Peta topografi"],
+            ans: 1,
+            diff: "Mencabar"
+        },
+        {
+            q: "Apakah pola petempatan yang terbentuk di sepanjang sungai atau jalan raya?",
+            options: ["Pola Berpusat", "Pola Berkelompok", "Pola Memanjang", "Pola Berselerak"],
+            ans: 2,
+            diff: "Mencabar"
+        },
+        {
+            q: "Apakah faktor fizikal utama yang mempengaruhi taburan penduduk padat di Dataran Kedah-Perlis?",
+            options: ["Kawasan tanah tinggi yang sejuk", "Tanah aluvium yang subur untuk penanaman padi", "Kaya dengan sumber mineral emas", "Banyak kilang perindustrian berat"],
+            ans: 1,
+            diff: "Mencabar"
+        },
+        {
+            q: "Kombinasi fenomena yang menyebabkan pembentukan pandang darat fizikal Delta ialah...",
+            options: ["Hakisan dan pemendapan sungai di muara", "Gelinciran kerak bumi", "Letusan gunung berapi underwater", "Tiupan angin monsun tajam"],
+            ans: 0,
+            diff: "Mencabar"
+        }
+    ];
+
+    // State Variables
+    let currentQ = 0;
+    let score = 0;
+    let playerName = "";
+    let playerClass = "";
+    let startTime = 0;
+    let timerInterval = null;
+    let elapsedTime = 0;
+
+    // Simulated Database Storage Key
+    const DB_KEY = 'geo_mario_leaderboard_db';
+
+    // Helper: Get Records from Database
+    function getLeaderboard() {
+        const stored = localStorage.getItem(DB_KEY);
+        if (stored) {
+            try { return JSON.parse(stored); } catch(e) { return []; }
+        }
+        // Default Mock Data
+        return [
+            { name: "Siti Aminah", class: "1 Alfa", score: 2000, time: "45s", date: "2026-10-12" },
+            { name: "Ali Imran", class: "1 Beta", score: 1800, time: "50s", date: "2026-10-13" },
+            { name: "Chong Wei", class: "1 Alfa", score: 1600, time: "52s", date: "2026-10-14" }
+        ];
+    }
+
+    // Helper: Save Score to Database
+    function saveToDatabase(record) {
+        const db = getLeaderboard();
+        db.push(record);
+        // Sort descending by score, then ascending by duration
+        db.sort((a, b) => b.score - a.score);
+        localStorage.setItem(DB_KEY, JSON.stringify(db.slice(0, 10))); // keep top 10
+    }
+
+    // Render Leaderboard
+    function renderLeaderboard() {
+        const tbody = document.getElementById('leaderboardBody');
+        const db = getLeaderboard();
+        if (db.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-gray-500">Tiada rekod lagi.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = db.map((item, idx) => `
+            <tr class="border-b hover:bg-yellow-50">
+                <td class="p-2 font-bold">${idx + 1}</td>
+                <td class="p-2 font-semibold">${escapeHtml(item.name)}</td>
+                <td class="p-2 text-gray-600">${escapeHtml(item.class)}</td>
+                <td class="p-2 font-retro text-green-600">${item.score}</td>
+                <td class="p-2 text-gray-500">${item.time}</td>
+            </tr>
+        `).join('');
+    }
+
+    function escapeHtml(text) {
+        return text.replace(/[&<>"']/g, function(m) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+        });
+    }
+
+    function startQuiz(e) {
+        e.preventDefault();
+        playerName = document.getElementById('playerName').value.trim();
+        playerClass = document.getElementById('playerClass').value.trim();
+
+        if (!playerName || !playerClass) return;
+
+        // Sound trigger
+        sfx.playJump();
+
+        // Switch Screens
+        document.getElementById('startScreen').classList.add('hidden');
+        document.getElementById('quizScreen').classList.remove('hidden');
+        document.getElementById('quizScreen').classList.add('flex');
+
+        document.getElementById('playerDisplay').innerText = `Pemain: ${playerName} (${playerClass})`;
+
+        // Reset game state
+        currentQ = 0;
+        score = 0;
+        elapsedTime = 0;
+        startTime = Date.now();
+
+        // Start timer
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+            document.getElementById('timerDisplay').innerHTML = `<i class="fas fa-clock"></i> Masa: ${elapsedTime}s`;
+        }, 1000);
+
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        const qData = quizQuestions[currentQ];
+        
+        // Update headers
+        document.getElementById('questionNum').innerText = `Soalan ${currentQ + 1}/20`;
+        document.getElementById('questionText').innerText = qData.q;
+        document.getElementById('scoreDisplay').innerHTML = `<i class="fas fa-coins text-yellow-500"></i> Markah: ${score}`;
+        
+        // Progress Bar
+        const progressPct = ((currentQ) / quizQuestions.length) * 100;
+        document.getElementById('progressBar').style.width = `${progressPct}%`;
+
+        // Difficulty Badge
+        const badge = document.getElementById('difficultyBadge');
+        badge.innerText = qData.diff;
+        if (qData.diff === 'Mudah') {
+            badge.className = "text-xs px-2 py-1 rounded font-bold text-white bg-green-500";
+        } else if (qData.diff === 'Sederhana') {
+            badge.className = "text-xs px-2 py-1 rounded font-bold text-white bg-yellow-500";
+        } else {
+            badge.className = "text-xs px-2 py-1 rounded font-bold text-white bg-red-500";
+        }
+
+        // Render Options
+        const container = document.getElementById('optionsContainer');
+        container.innerHTML = '';
+
+        qData.options.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = "p-3 sm:p-4 bg-white border-2 border-black rounded-lg text-left font-medium hover:bg-yellow-100 active:scale-98 transition flex items-center gap-3 text-sm";
+            btn.innerHTML = `<span class="w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center font-retro text-xs border border-black">${String.fromCharCode(65 + idx)}</span> <span>${opt}</span>`;
+            btn.onclick = () => selectAnswer(idx);
+            container.appendChild(btn);
+        });
+
+        // Move Mario slightly
+        const mario = document.getElementById('gameMario');
+        mario.style.transform = `translateX(${(currentQ / 20) * 200}px)`;
+    }
+
+    function selectAnswer(selectedIdx) {
+        const qData = quizQuestions[currentQ];
+        const container = document.getElementById('optionsContainer');
+        const buttons = container.querySelectorAll('button');
+
+        // Disable all buttons to prevent double click
+        buttons.forEach(btn => btn.disabled = true);
+
+        if (selectedIdx === qData.ans) {
+            // Correct Answer
+            sfx.playCoin();
+            score += 100;
+            buttons[selectedIdx].classList.add('bg-green-200', 'border-green-600');
+            
+            // Trigger Mario Jump & Coin Pop
+            const mario = document.getElementById('gameMario');
+            mario.classList.add('animate-jump');
+            setTimeout(() => mario.classList.remove('animate-jump'), 400);
+
+            showCoinAnim();
+        } else {
+            // Wrong Answer
+            sfx.playWrong();
+            buttons[selectedIdx].classList.add('bg-red-200', 'border-red-600');
+            buttons[qData.ans].classList.add('bg-green-100', 'border-green-500');
+        }
+
+        // Delay to next question
+        setTimeout(() => {
+            currentQ++;
+            if (currentQ < quizQuestions.length) {
+                loadQuestion();
+            } else {
+                finishQuiz();
+            }
+        }, 1200);
+    }
+
+    function showCoinAnim() {
+        const coin = document.getElementById('coinAnimation');
+        coin.classList.remove('hidden');
+        coin.classList.add('coin-popup');
+        setTimeout(() => {
+            coin.classList.add('hidden');
+            coin.classList.remove('coin-popup');
+        }, 600);
+    }
+
+    function finishQuiz() {
+        clearInterval(timerInterval);
+        sfx.playVictory();
+
+        // Switch to Result Screen
+        document.getElementById('quizScreen').classList.add('hidden');
+        document.getElementById('resultScreen').classList.remove('hidden');
+        document.getElementById('resultScreen').classList.add('flex');
+
+        const accuracy = Math.round((score / (quizQuestions.length * 100)) * 100);
+
+        document.getElementById('finalScore').innerText = score;
+        document.getElementById('finalTime').innerText = `${elapsedTime}s`;
+        document.getElementById('finalAccuracy').innerText = `${accuracy}%`;
+
+        // Save entry to Local Storage "Database"
+        const record = {
+            name: playerName,
+            class: playerClass,
+            score: score,
+            time: `${elapsedTime}s`,
+            date: new Date().toISOString().split('T')[0]
+        };
+        saveToDatabase(record);
+        renderLeaderboard();
+    }
+
+    function restartQuiz() {
+        sfx.playJump();
+        document.getElementById('resultScreen').classList.add('hidden');
+        document.getElementById('startScreen').classList.remove('hidden');
+        renderLeaderboard();
+    }
+
+    // Initial load
+    window.onload = function() {
+        renderLeaderboard();
+    };
+</script>
+
+</body>
+</html>
